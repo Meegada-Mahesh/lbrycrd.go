@@ -72,8 +72,8 @@ func calcMinRequiredTxRelayFee(serializedSize int64, minRelayTxFee btcutil.Amoun
 
 	// Set the minimum fee to the maximum possible value if the calculated
 	// fee is not in the valid range for monetary amounts.
-	if minFee < 0 || minFee > btcutil.MaxSatoshi {
-		minFee = btcutil.MaxSatoshi
+	if minFee < 0 || minFee > (btcutil.MaxSatoshi*1000) {
+		minFee = (btcutil.MaxSatoshi * 1000)
 	}
 
 	return minFee
@@ -99,7 +99,7 @@ func checkInputsStandard(tx *btcutil.Tx, utxoView *blockchain.UtxoViewpoint) err
 		// they have already been checked prior to calling this
 		// function.
 		entry := utxoView.LookupEntry(txIn.PreviousOutPoint)
-		originPkScript := entry.PkScript()
+		originPkScript := txscript.StripClaimScriptPrefix(entry.PkScript())
 		switch txscript.GetScriptClass(originPkScript) {
 		case txscript.ScriptHashTy:
 			numSigOps := txscript.GetPreciseSigOpCount(
@@ -332,8 +332,9 @@ func checkTransactionStandard(tx *btcutil.Tx, height int32,
 	// be "dust" (except when the script is a null data script).
 	numNullDataOutputs := 0
 	for i, txOut := range msgTx.TxOut {
-		scriptClass := txscript.GetScriptClass(txOut.PkScript)
-		err := checkPkScriptStandard(txOut.PkScript, scriptClass)
+		pkScript := txscript.StripClaimScriptPrefix(txOut.PkScript)
+		scriptClass := txscript.GetScriptClass(pkScript)
+		err := checkPkScriptStandard(pkScript, scriptClass)
 		if err != nil {
 			// Attempt to extract a reject code from the error so
 			// it can be retained.  When not possible, fall back to
